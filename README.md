@@ -5,9 +5,14 @@
 ATOMS3を傾けるだけで画面が切り替わるポモドーロタイマーです。
 ボタン操作なし、メニューなし。コロコロ転がすだけで即集中モードに入れます。
 
-[![Simulator](https://img.shields.io/badge/▶_Open-Simulator-orange?style=for-the-badge)](https://あなたのGitHubID.github.io/PomoCoro/)
+[![Simulator](https://img.shields.io/badge/▶_Open-Simulator-orange?style=for-the-badge)](https://inogit.github.io/PomoCoro/)
 
 ---
+
+
+https://github.com/user-attachments/assets/9b3cdd97-8925-40e6-9a96-bb896400e78c
+
+
 
 ## 📺 デモ
 
