@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>PomoCoro Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080c12;
+  --surface: #0e1520;
+  --border:  #1a2535;
+  --muted:   #2a3a50;
+  --text:    #c8d8e8;
+  --dim:     #4a6070;
+  --accent:  #f0a030;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 60px;
+  background-image:
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(50,100,180,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 80% 80%, rgba(200,80,50,0.05) 0%, transparent 70%);
+}
+.header { text-align: center; margin-bottom: 36px; }
+.header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800; letter-spacing: 0.12em;
+  background: linear-gradient(135deg, #f0a030 0%, #e06020 50%, #c03060 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 6px;
+}
+.header p { font-size: 11px; color: var(--dim); letter-spacing: 0.08em; }
+
+.main { display: flex; gap: 44px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+.device-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.device {
+  background: linear-gradient(145deg, #1a2030 0%, #0e1520 60%, #0a1018 100%);
+  border: 1px solid #2a3a50; border-radius: 20px; padding: 16px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 24px 64px rgba(0,0,0,0.8),
+              inset 0 1px 0 rgba(255,255,255,0.06);
+  position: relative;
+}
+.device::before {
+  content: ''; position: absolute; inset: -1px; border-radius: 21px;
+  box-shadow: 0 0 40px var(--screen-glow, rgba(50,100,200,0.2));
+  pointer-events: none; z-index: -1; transition: box-shadow 0.6s;
+}
+.screen-wrap {
+  border-radius: 10px; overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 20px rgba(0,0,0,0.6);
+}
+canvas#screen {
+  display: block; width: 256px; height: 256px;
+  image-rendering: pixelated; cursor: pointer;
+  transition: opacity 0.22s ease;
+}
+canvas#screen.fading { opacity: 0; }
+.usb-port {
+  width: 24px; height: 6px; margin: 10px auto 0;
+  background: linear-gradient(180deg, #1a2535 0%, #0a1018 100%);
+  border: 1px solid #2a3a50; border-radius: 3px;
+}
+.tap-hint { font-size: 10px; color: var(--dim); letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 6px; }
+.tap-hint::before,.tap-hint::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.control-col { display: flex; flex-direction: column; gap: 18px; width: 272px; padding-top: 4px; }
+.section-label {
+  font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.15em; color: var(--dim); text-transform: uppercase; margin-bottom: 7px;
+}
+.screen-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.screen-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--dim); font-family: 'Noto Sans JP', sans-serif;
+  font-size: 11px; padding: 9px 6px; cursor: pointer; transition: all 0.18s; text-align: center;
+}
+.screen-btn:hover { border-color: var(--muted); color: var(--text); background: #141e2c; }
+.screen-btn.active { background: linear-gradient(135deg,#1a2c1a,#0e1a10); border-color:#2a5a30; color:#60cc80; }
+.screen-btn.active.red    { background:linear-gradient(135deg,#2c1a1a,#1a0e0e); border-color:#5a2a2a; color:#cc6060; }
+.screen-btn.active.blue   { background:linear-gradient(135deg,#1a2040,#0e1428); border-color:#2a4080; color:#6090dd; }
+.screen-btn.active.purple { background:linear-gradient(135deg,#1e1430,#120b20); border-color:#402880; color:#9060dd; }
+.screen-btn.active.amber  { background:linear-gradient(135deg,#2a2010,#180e08); border-color:#604010; color:#cc8030; }
+
+.tilt-row { display: flex; gap: 8px; align-items: center; }
+.tilt-btn {
+  flex:1; background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  color:var(--text); font-size:12px; padding:9px; cursor:pointer; transition:all 0.18s;
+  font-family:'Noto Sans JP',sans-serif;
+}
+.tilt-btn:hover { background:#141e2c; border-color:var(--muted); }
+.tilt-btn:active { transform:scale(0.97); }
+.tilt-mid { font-size:10px; color:var(--dim); text-align:center; }
+
+.toggle-row { display:flex; flex-direction:column; gap:7px; }
+.toggle-item {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:9px 13px;
+}
+.toggle-key { font-size:11px; color:var(--dim); }
+.toggle-val {
+  background:var(--bg); border:1px solid var(--muted); border-radius:6px;
+  color:var(--accent); font-family:'DM Mono',monospace; font-size:11px;
+  padding:3px 10px; cursor:pointer; transition:all 0.18s;
+}
+.toggle-val:hover { border-color:var(--accent); box-shadow:0 0 8px rgba(240,160,48,0.2); }
+
+.kbd-hint {
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:11px 14px; font-size:11px; color:var(--dim); line-height:1.9;
+}
+.kbd {
+  display:inline-block; background:var(--bg); border:1px solid var(--muted);
+  border-radius:4px; padding:1px 5px; font-family:'DM Mono',monospace;
+  font-size:10px; color:var(--text); margin:0 2px;
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>POMOCORO</h1>
+  <p>ATOMS3 DISPLAY SIMULATOR  ·  128 × 128 px</p>
+</div>
+<div class="main">
+  <div class="device-col">
+    <div class="device" id="device">
+      <div class="screen-wrap">
+        <canvas id="screen" width="128" height="128" title="Click = Button Tap"></canvas>
+      </div>
+      <div class="usb-port"></div>
+    </div>
+    <div class="tap-hint">CLICK SCREEN = BUTTON TAP</div>
+  </div>
+  <div class="control-col">
+    <div>
+      <div class="section-label">Screen</div>
+      <div class="screen-btns">
+        <button class="screen-btn" data-screen="boot"       data-color="amber"  onclick="goScreen('boot')">🚀 BOOT</button>
+        <button class="screen-btn" data-screen="idle"       data-color="blue"   onclick="goScreen('idle')">🏠 HOME</button>
+        <button class="screen-btn" data-screen="work"       data-color="red"    onclick="goScreen('work')">⏱ FOCUS</button>
+        <button class="screen-btn" data-screen="shortBreak" data-color=""       onclick="goScreen('shortBreak')">🌿 SHORT BREAK</button>
+        <button class="screen-btn" data-screen="longBreak"  data-color="blue"   onclick="goScreen('longBreak')">☕ LONG BREAK</button>
+        <button class="screen-btn" data-screen="stats"      data-color="purple" onclick="goScreen('stats')">📊 STATS</button>
+        <button class="screen-btn" data-screen="settings"   data-color="amber"  onclick="goScreen('settings')">⚙️ SETTINGS</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Tilt</div>
+      <div class="tilt-row">
+        <button class="tilt-btn" onclick="tiltLeft()">← TILT LEFT</button>
+        <span class="tilt-mid">TILT</span>
+        <button class="tilt-btn" onclick="tiltRight()">TILT RIGHT →</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Settings</div>
+      <div class="toggle-row">
+        <div class="toggle-item">
+          <span class="toggle-key">TIMER MODE</span>
+          <button class="toggle-val" id="modeBtn" onclick="toggleTimerMode()">DIGITAL</button>
+        </div>
+        <div class="toggle-item">
+          <span class="toggle-key">LONG BREAK</span>
+          <button class="toggle-val" id="lbBtn" onclick="toggleLongBreak()">15 min</button>
+        </div>
+      </div>
+    </div>
+    <div class="kbd-hint">
+      <div><span class="kbd">←</span><span class="kbd">→</span> Tilt</div>
+      <div><span class="kbd">Space</span> Button Tap</div>
+      <div><span class="kbd">L</span> cursor move in SETTINGS (long press)</div>
+    </div>
+  </div>
+</div>
+<script>
+// ============================================================
+//  State
+// ============================================================
+let curScreen    = 'boot';
+let circleMode   = false;
+let longBreakMin = 15;
+let settCursor   = 0;
+let timerEnd     = 0;
+let timerTotal   = 0;
+let timerActive  = false;
+let todayPom     = 3;
+let todayFocusSec = 75 * 60;
+const DEMO_CODE  = 0;
+const DEMO_TEMP  = 28;
+
+const canvas = document.getElementById('screen');
+const ctx    = canvas.getContext('2d');
+const device = document.getElementById('device');
+
+// ============================================================
+//  Draw Primitives
+// ============================================================
+function cls(col)           { ctx.fillStyle=col; ctx.fillRect(0,0,128,128); }
+function circle(cx,cy,r,col){ ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=col; ctx.fill(); }
+function rect(x,y,w,h,col)  { ctx.fillStyle=col; ctx.fillRect(x,y,w,h); }
+function roundRect(x,y,w,h,r,col) {
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fillStyle=col; ctx.fill();
+}
+function tri(x1,y1,x2,y2,x3,y3,col) {
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x3,y3);
+  ctx.closePath(); ctx.fillStyle=col; ctx.fill();
+}
+function line(x1,y1,x2,y2,col,w=1.2) {
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.strokeStyle=col; ctx.lineWidth=w; ctx.stroke();
+}
+function hline(x,y,w,col,lw=1) { line(x,y,x+w,y,col,lw); }
+function vline(x,y,h,col,lw=1) { line(x,y,x,y+h,col,lw); }
+
+function arcDonut(cx,cy,r1,r2,a1,a2,col) {
+  const s=a1*Math.PI/180, e=a2*Math.PI/180;
+  ctx.beginPath(); ctx.arc(cx,cy,r1,s,e); ctx.arc(cx,cy,r2,e,s,true);
+  ctx.closePath(); ctx.fillStyle=col; ctx.fill();
+}
+
+function txt(text,x,y,col,size,font='sans',align='left',base='top') {
+  ctx.font = font==='mono'?`${size}px 'DM Mono',monospace`:`${size}px 'Noto Sans JP',sans-serif`;
+  ctx.fillStyle=col; ctx.textAlign=align; ctx.textBaseline=base;
+  ctx.fillText(text,x,y);
+}
+function txtC(text,y,col,size,font='sans') { txt(text,64,y,col,size,font,'center','top'); }
+
+// 角丸プログレスバー (高さ24px・シミュレーターと本体で共通仕様)
+function bar(rem,total,y,col) {
+  const bx=8,bw=112,bh=24,r=12;
+  roundRect(bx,y,bw,bh,r,'#1a2535');
+  if(total>0&&rem>0){
+    const f=Math.min(Math.floor(rem/total*bw),bw);
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(bx,y,bw,bh,r); ctx.clip();
+    const g=ctx.createLinearGradient(bx,0,bx+bw,0);
+    g.addColorStop(0,col); g.addColorStop(1,col+'aa');
+    ctx.fillStyle=g; ctx.fillRect(bx,y,f,bh);
+    ctx.restore();
+  }
+}
+
+function gradBg(c1,c2) {
+  const g=ctx.createLinearGradient(0,0,0,128);
+  g.addColorStop(0,c1); g.addColorStop(1,c2);
+  ctx.fillStyle=g; ctx.fillRect(0,0,128,128);
+}
+function radialGlow(cx,cy,r,col) {
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+  g.addColorStop(0,col); g.addColorStop(1,'transparent');
+  ctx.fillStyle=g; ctx.fillRect(0,0,128,128);
+}
+
+// ============================================================
+//  Weather Icons
+// ============================================================
+function cloud(cx,cy,sz,col) {
+  const r=Math.floor(sz/3);
+  circle(cx-r,cy,r,col); circle(cx,cy-r,r+1,col); circle(cx+r,cy,r,col);
+  rect(cx-r*2,cy,r*4,r,col);
+}
+function sun(cx,cy,sz) {
+  const col='#FFCC00'; circle(cx,cy,sz/2,col);
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    line(cx+(sz/2+2)*Math.cos(a),cy+(sz/2+2)*Math.sin(a),
+         cx+(sz-1)*Math.cos(a),  cy+(sz-1)*Math.sin(a),col,1.5);
+  }
+}
+function cloudy(cx,cy,sz) { sun(cx-sz/5,cy-sz/5,sz*3/4); cloud(cx+sz/6,cy+sz/5,sz,'#CCCCCC'); }
+function rain(cx,cy,sz) {
+  cloud(cx,cy-sz/5,sz,'#5a7080');
+  const d=Math.floor(sz/4);
+  for(let i=-1;i<=1;i++){ const rx=cx+i*d,ry=cy+Math.floor(sz/3); tri(rx,ry+d,rx-2,ry,rx+2,ry,'#44AAFF'); }
+}
+function snow(cx,cy,sz) {
+  cloud(cx,cy-sz/5,sz,'#7a9aaa');
+  const sy=cy+Math.floor(sz/3);
+  for(let i=-1;i<=1;i++){
+    const sx=cx+i*Math.floor(sz/3);
+    vline(sx,sy-Math.floor(sz/5),Math.floor(sz/3),'#DDEEFF');
+    hline(sx-Math.floor(sz/10),sy,Math.floor(sz/5),'#DDEEFF');
+  }
+}
+function fog(cx,cy,sz) {
+  for(let i=-2;i<=2;i++){
+    const lw=(Math.abs(i)===2)?Math.floor(sz*3/4):sz;
+    hline(cx-Math.floor(lw/2),cy+i*Math.floor(sz/4),lw,'#6a8090',1.5);
+  }
+}
+function storm(cx,cy,sz) {
+  cloud(cx,cy-sz/5,sz,'#354555');
+  line(cx,cy+sz/5,cx-sz/4,cy+sz/5+sz/3,'#FFEE44',2);
+  line(cx-sz/4,cy+sz/5+sz/3,cx,cy+sz/5+sz/4,'#FFEE44',2);
+  line(cx,cy+sz/5+sz/4,cx-sz/3,cy+sz/5+sz*2/3,'#FFEE44',2);
+}
+function weatherIcon(code,cx,cy,sz) {
+  if(code===0)     sun(cx,cy,sz);
+  else if(code<=3) cloudy(cx,cy,sz);
+  else if(code<=48)fog(cx,cy,sz);
+  else if(code<=67)rain(cx,cy,sz);
+  else if(code<=77)snow(cx,cy,sz);
+  else if(code<=86)snow(cx,cy,sz);
+  else             storm(cx,cy,sz);
+}
+
+// ============================================================
+//  Timer Utils
+// ============================================================
+function startTimer(sec) { timerEnd=Date.now()+sec*1000; timerTotal=sec; timerActive=true; }
+function timerRem()      { return timerActive?Math.max(0,Math.ceil((timerEnd-Date.now())/1000)):0; }
+function fmt(s)          { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+
+// ============================================================
+//  Donut Timer
+// ============================================================
+function drawDonut(rem,total,fillCol,bg) {
+  cls(bg);
+  const elapsed = total>0?(total-rem)/total:0;
+  const trackCol = fillCol+'33';
+  arcDonut(64,64,58,34,-90,270,trackCol);
+  if(elapsed>0) arcDonut(64,64,58,34,-90,-90+elapsed*360,fillCol);
+  // 12時マーカー
+  circle(64,6,3,'#ffffff');
+  // 現在位置マーカー
+  if(elapsed>0){
+    const a=(-90+elapsed*360)*Math.PI/180;
+    circle(64+54*Math.cos(a),64+54*Math.sin(a),2.5,fillCol);
+  }
+}
+
+// ============================================================
+//  BOOT Screen
+// ============================================================
+function drawBoot() {
+  gradBg('#0a1520','#060d18');
+  const text='POMOCORO';
+  ctx.font="bold 22px 'DM Mono',monospace";
+  ctx.textBaseline='top'; ctx.textAlign='center';
+  const tw=ctx.measureText(text).width;
+  const grad=ctx.createLinearGradient(64-tw/2,0,64+tw/2,0);
+  grad.addColorStop(0,'#F0A030'); grad.addColorStop(0.5,'#E05828'); grad.addColorStop(1,'#C03060');
+  ctx.fillStyle=grad;
+  let lx=64-tw/2;
+  text.split('').forEach(ch=>{
+    const cw=ctx.measureText(ch).width;
+    ctx.fillText(ch,lx+cw/2,38);
+    lx+=cw+tw*0.06;
+  });
+  txtC('Connecting...',72,'#aabbcc',9,'mono');
+  device.style.setProperty('--screen-glow','rgba(200,80,40,0.25)');
+}
+
+// ============================================================
+//  HOME Screen
+// ============================================================
+function drawIdle() {
+  gradBg('#0a1520','#060d18');
+  radialGlow(64,30,80,'rgba(40,90,180,0.08)');
+  const now=new Date();
+  const hh=String(now.getHours()).padStart(2,'0');
+  const mm=String(now.getMinutes()).padStart(2,'0');
+  const wd=['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const ds=`${now.getMonth()+1}/${now.getDate()} ${wd[now.getDay()]}`;
+
+  // 時刻
+  ctx.font="bold 28px 'DM Mono',monospace";
+  ctx.fillStyle='#e8f0f8'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(`${hh}:${mm}`,64,8);
+
+  // 日付 (気温と同サイズ: 16px)
+  txtC(ds,42,'#8899AA',16,'mono');
+
+  // 区切り線
+  const lg=ctx.createLinearGradient(8,0,120,0);
+  lg.addColorStop(0,'transparent'); lg.addColorStop(0.3,'#1e3a5a');
+  lg.addColorStop(0.7,'#1e3a5a'); lg.addColorStop(1,'transparent');
+  ctx.strokeStyle=lg; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(8,64); ctx.lineTo(120,64); ctx.stroke();
+
+  // 天気アイコン + 気温
+  weatherIcon(DEMO_CODE,28,92,22);
+  ctx.font="bold 16px 'DM Mono',monospace";
+  ctx.fillStyle='#c8d8e8'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(`${DEMO_TEMP}°C`,57,80);
+
+  device.style.setProperty('--screen-glow','rgba(40,100,200,0.25)');
+}
+
+// ============================================================
+//  FOCUS / SHORT BREAK Screen
+// ============================================================
+function drawPomodoro(isWork) {
+  const rem   = timerActive?timerRem():(isWork?25*60:5*60);
+  const total = isWork?25*60:5*60;
+  const label = isWork?'FOCUS':'BREAK';
+  const bg    = isWork?'#120808':'#081208';
+  const bg2   = isWork?'#0a0506':'#050a06';
+  const acol  = isWork?'#dd5555':'#44bb66';  // CIRCLEと同色
+  const fcol  = isWork?'#f0dddd':'#ddf0e4';
+
+  if(circleMode) {
+    drawDonut(rem,total,acol,bg);
+    txtC(label,50,fcol,11,'mono');
+  } else {
+    gradBg(bg,bg2);
+    radialGlow(64,20,60,isWork?'rgba(160,40,40,0.1)':'rgba(40,140,70,0.1)');
+    txtC(label,8,isWork?'#6a2525':'#256a35',9,'mono');
+    ctx.font="bold 26px 'DM Mono',monospace";
+    ctx.fillStyle=fcol; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(fmt(rem),64,26);
+    bar(rem,total,54,acol);
+  }
+  device.style.setProperty('--screen-glow',isWork?'rgba(180,50,50,0.3)':'rgba(50,160,80,0.25)');
+}
+
+// ============================================================
+//  LONG BREAK Screen
+// ============================================================
+function drawLongBreak() {
+  const rem   = timerActive?timerRem():longBreakMin*60;
+  const total = longBreakMin*60;
+
+  if(circleMode) {
+    drawDonut(rem,total,'#3a80c0','#060e18');  // CIRCLEと同色
+    txtC('LONG BREAK',50,'#8ab8e0',11,'mono');
+  } else {
+    gradBg('#060e18','#040a14');
+    radialGlow(64,64,80,'rgba(40,100,200,0.1)');
+    txtC('LONG BREAK',8,'#1e4060',9,'mono');
+    ctx.font="bold 26px 'DM Mono',monospace";
+    ctx.fillStyle='#8ab8e0'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText(fmt(rem),64,26);
+    bar(rem,total,54,'#3a80c0');  // CIRCLEと同色
+  }
+  device.style.setProperty('--screen-glow','rgba(40,100,200,0.2)');
+}
+
+// ============================================================
+//  STATS Screen
+// ============================================================
+function drawStats() {
+  gradBg('#0c0818','#060410');
+  radialGlow(24,24,60,'rgba(120,60,200,0.08)');
+
+  // TODAY タイトル (20px相当)
+  txtC('TODAY',6,'#6644AA',16,'mono');
+
+  // 区切り線
+  const lg=ctx.createLinearGradient(8,0,120,0);
+  lg.addColorStop(0,'transparent'); lg.addColorStop(0.3,'#332260');
+  lg.addColorStop(0.7,'#332260'); lg.addColorStop(1,'transparent');
+  ctx.strokeStyle=lg; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(8,30); ctx.lineTo(120,30); ctx.stroke();
+
+  // セッション数 (大・白)
+  ctx.font="bold 36px 'DM Mono',monospace";
+  ctx.fillStyle='#ffffff'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(String(todayPom),64,36);
+
+  // sessions ラベル (20px相当・紫)
+  txtC('sessions',70,'#6644AA',16,'mono');
+
+  // 区切り線
+  ctx.beginPath(); ctx.moveTo(8,90); ctx.lineTo(120,90); ctx.stroke();
+
+  // 集中時間 (白)
+  const min=Math.floor(todayFocusSec/60);
+  const timeStr=min>=60?`${Math.floor(min/60)}h ${min%60}m`:`${min} min`;
+  ctx.font="bold 18px 'DM Mono',monospace";
+  ctx.fillStyle='#ffffff'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(timeStr,64,96);
+
+  device.style.setProperty('--screen-glow','rgba(100,50,200,0.2)');
+}
+
+// ============================================================
+//  SETTINGS Screen
+// ============================================================
+function drawSettings() {
+  gradBg('#0c0c0c','#080808');
+  radialGlow(100,20,60,'rgba(200,120,30,0.06)');
+
+  txtC('SETTINGS',6,'#2a2010',8,'mono');
+
+  const lg=ctx.createLinearGradient(8,0,120,0);
+  lg.addColorStop(0,'transparent'); lg.addColorStop(0.3,'#2a2010');
+  lg.addColorStop(0.7,'#2a2010'); lg.addColorStop(1,'transparent');
+  ctx.strokeStyle=lg; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(8,20); ctx.lineTo(120,20); ctx.stroke();
+
+  // 項目1: LONG BREAK
+  const a1=settCursor===0?'#f0a030':'#2a2820';
+  if(settCursor===0) rect(4,24,120,36,'#1a1400');
+  txtC('LONG BREAK',26,settCursor===0?'#c07020':'#1a1a18',8,'mono');
+  ctx.font="bold 20px 'DM Mono',monospace";
+  ctx.fillStyle=a1; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(`${longBreakMin} min`,64,38);
+
+  ctx.beginPath(); ctx.moveTo(8,66); ctx.lineTo(120,66); ctx.stroke();
+
+  // 項目2: TIMER MODE
+  const a2=settCursor===1?'#f0a030':'#2a2820';
+  if(settCursor===1) rect(4,70,120,36,'#1a1400');
+  txtC('TIMER MODE',72,settCursor===1?'#c07020':'#1a1a18',8,'mono');
+  ctx.font="bold 18px 'DM Mono',monospace";
+  ctx.fillStyle=a2; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(circleMode?'CIRCLE':'DIGITAL',64,84);
+
+  device.style.setProperty('--screen-glow','rgba(200,120,30,0.2)');
+}
+
+// ============================================================
+//  Render Dispatch
+// ============================================================
+function render() {
+  switch(curScreen){
+    case 'boot':       drawBoot();           break;
+    case 'idle':       drawIdle();           break;
+    case 'work':       drawPomodoro(true);   break;
+    case 'shortBreak': drawPomodoro(false);  break;
+    case 'longBreak':  drawLongBreak();      break;
+    case 'stats':      drawStats();          break;
+    case 'settings':   drawSettings();       break;
+  }
+}
+
+// ============================================================
+//  Navigation
+// ============================================================
+const ORDER=['idle','work','longBreak','stats'];
+function goScreen(name) {
+  if(name===curScreen) return;
+  const cv=document.getElementById('screen');
+  cv.classList.add('fading');
+  setTimeout(()=>{
+    curScreen=name; timerActive=false;
+    if(name==='work')       startTimer(25*60);
+    if(name==='shortBreak') startTimer(5*60);
+    if(name==='longBreak')  startTimer(longBreakMin*60);
+    render(); updateButtons(); cv.classList.remove('fading');
+  },200);
+}
+function tiltRight(){ const i=ORDER.indexOf(curScreen); goScreen(ORDER[(i+1)%ORDER.length]||'idle'); }
+function tiltLeft() { const i=ORDER.indexOf(curScreen); goScreen(ORDER[(i+ORDER.length-1)%ORDER.length]||'stats'); }
+
+canvas.addEventListener('click',()=>{
+  switch(curScreen){
+    case 'idle': render(); break;
+    case 'work': startTimer(25*60); render(); break;
+    case 'shortBreak': startTimer(5*60); render(); break;
+    case 'longBreak': curScreen='work'; startTimer(25*60); updateButtons(); render(); break;
+    case 'stats': todayPom=0; todayFocusSec=0; render(); break;
+    case 'settings':
+      if(settCursor===0){ longBreakMin=longBreakMin===15?20:15; document.getElementById('lbBtn').textContent=`${longBreakMin} min`; }
+      else{ circleMode=!circleMode; document.getElementById('modeBtn').textContent=circleMode?'CIRCLE':'DIGITAL'; }
+      render(); break;
+  }
+});
+
+function toggleTimerMode(){ circleMode=!circleMode; document.getElementById('modeBtn').textContent=circleMode?'CIRCLE':'DIGITAL'; render(); }
+function toggleLongBreak(){ longBreakMin=longBreakMin===15?20:15; document.getElementById('lbBtn').textContent=`${longBreakMin} min`; if(curScreen==='longBreak') startTimer(longBreakMin*60); render(); }
+
+function updateButtons(){
+  const map={boot:'🚀 BOOT',idle:'🏠 HOME',work:'⏱ FOCUS',shortBreak:'🌿 SHORT BREAK',
+             longBreak:'☕ LONG BREAK',stats:'📊 STATS',settings:'⚙️ SETTINGS'};
+  const col={boot:'amber',idle:'blue',work:'red',shortBreak:'',longBreak:'blue',stats:'purple',settings:'amber'};
+  document.querySelectorAll('.screen-btn').forEach(btn=>{
+    btn.classList.remove('active','red','blue','purple','amber');
+    if(btn.dataset.screen===curScreen){
+      btn.classList.add('active');
+      if(col[curScreen]) btn.classList.add(col[curScreen]);
+    }
+  });
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight') tiltRight();
+  if(e.key==='ArrowLeft')  tiltLeft();
+  if(e.key===' '){ e.preventDefault(); canvas.dispatchEvent(new MouseEvent('click')); }
+  if((e.key==='l'||e.key==='L')&&curScreen==='settings'){ settCursor=(settCursor+1)%2; render(); }
+});
+
+setInterval(()=>{ render(); },1000);
+
+// Init: BOOT → HOME after 2s
+updateButtons();
+render();
+setTimeout(()=>{ goScreen('idle'); },2000);
+</script>
+</body>
+</html>
